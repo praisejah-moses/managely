@@ -1,0 +1,153 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+  moduleFormat = "cjs"
+
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+
+  
+
+
+// Models
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String?
+  name      String?
+  avatar    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  projects Project[]
+  tasks    TaskAssignee[]
+
+  @@map("users")
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  name        String
+  description String
+  completed   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  creator   User   @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  creatorId String
+
+  tasks        Task[]
+
+  @@index([creatorId])
+  @@map("projects")
+  people Person[] @relation("ProjectPeople")
+  projectPeoples ProjectPeople[] @relation("ProjectPeople")
+}
+
+model Person {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  avatar    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  projects Project[] @relation("ProjectPeople")
+  tasks    Task[]    @relation("TaskAssignees")
+
+  @@map("people")
+  projectPeoples ProjectPeople[] @relation("ProjectPeople")
+}
+
+// Join table for Project-Person (many-to-many)
+model ProjectPeople {
+  id        String   @id @default(cuid())
+  project   Project  @relation("ProjectPeople", fields: [projectId], references: [id], onDelete: Cascade)
+  projectId String
+  person    Person   @relation("ProjectPeople", fields: [personId], references: [id], onDelete: Cascade)
+  personId  String
+  createdAt DateTime @default(now())
+
+  @@unique([projectId, personId])
+  @@map("project_people")
+}
+
+model Task {
+  id          String   @id @default(cuid())
+  text        String
+  completed   Boolean  @default(false)
+  order       Int      @default(0) // For sorting/ordering tasks
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId String
+
+  subtasks           Subtask[]
+  assignees          TaskAssignee[]
+  dependsOn          TaskDependency[] @relation("DependentTask")
+  dependents         TaskDependency[] @relation("DependencyTask")
+
+  @@index([projectId])
+  @@map("tasks")
+  people Person[] @relation("TaskAssignees")
+}
+
+// Task Dependencies - represents which tasks this task depends on
+model TaskDependency {
+  id             String   @id @default(cuid())
+  dependentTask  Task     @relation("DependentTask", fields: [dependentTaskId], references: [id], onDelete: Cascade)
+  dependentTaskId String
+  dependencyTask Task     @relation("DependencyTask", fields: [dependencyTaskId], references: [id], onDelete: Cascade)
+  dependencyTaskId String
+  createdAt      DateTime @default(now())
+
+  @@unique([dependentTaskId, dependencyTaskId])
+  @@index([dependencyTaskId])
+  @@map("task_dependencies")
+}
+
+// Join table for Task-Person (many-to-many assignees)
+model TaskAssignee {
+  id        String   @id @default(cuid())
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  createdAt DateTime @default(now())
+
+  @@unique([taskId, userId])
+  @@index([userId])
+  @@map("task_assignees")
+}
+
+model Subtask {
+  id        String   @id @default(cuid())
+  text      String
+  completed Boolean  @default(false)
+  order     Int      @default(0) // For sorting/ordering subtasks
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskId String
+
+  @@index([taskId])
+  @@map("subtasks")
+}
