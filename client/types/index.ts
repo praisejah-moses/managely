@@ -112,7 +112,7 @@ export interface ProjectDetailsModalProps {
   project: GetProjectsApiResponse;
   isOpen: boolean;
   onClose: () => void;
-  onUpdateProjects: (updater: (cur: Project[]) => Project[]) => void;
+  onUpdateProjects: (updater: (cur: ProjectServerResponse[]) => Project[]) => void;
   onUpdateSelected: (updater: (s: Project | null) => Project | null) => void;
   taskInput: string;
   onTaskInputChange: (value: string) => void;
