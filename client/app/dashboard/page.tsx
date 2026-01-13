@@ -173,7 +173,7 @@ function Dash() {
             // Apply "My Projects" filter if active
             if (showMyProjectsOnly && currentUser) {
               // Check if user is the creator
-              const isCreator = project.userId === currentUser.id;
+              const isCreator = project.creatorId === currentUser.id; // Changed from userId to creatorId
               if (!isCreator) return false;
             }
 

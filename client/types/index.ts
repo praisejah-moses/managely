@@ -112,7 +112,9 @@ export interface ProjectDetailsModalProps {
   project: GetProjectsApiResponse;
   isOpen: boolean;
   onClose: () => void;
-  onUpdateProjects: (updater: (cur: ProjectServerResponse[]) => ProjectServerResponse[]) => void;
+  onUpdateProjects: (
+    updater: (cur: ProjectServerResponse[]) => ProjectServerResponse[]
+  ) => void;
   onUpdateSelected: (updater: (s: Project | null) => Project | null) => void;
   taskInput: string;
   onTaskInputChange: (value: string) => void;
@@ -179,7 +181,7 @@ export interface ProjectServerResponse {
     name: string;
   }>;
   completed: boolean;
-  userId: string;
+  creatorId: string; // Changed from userId to creatorId
   createdAt: string;
   updatedAt?: string;
 }
