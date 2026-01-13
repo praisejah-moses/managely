@@ -118,8 +118,8 @@ export function ProjectDetailsModal({
     projectId: project.data[0].id,
     setLoading,
     setError,
-    onUpdateProjects,
-    onUpdateSelected,
+    onUpdateProjects: onUpdateProjects as any,
+    onUpdateSelected: onUpdateSelected as any,
   };
 
   const onAddTask = () => {
