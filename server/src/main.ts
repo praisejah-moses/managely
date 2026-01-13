@@ -19,7 +19,11 @@ async function bootstrap() {
   );
 
   // Enable CORS
-  app.enableCors({ origin: 'http://localhost:3000', credentials: true });
+  app.enableCors(
+    { origin: 'https://managely-by5z.vercel.app',
+    credentials: true
+     }
+  );
 
   await app.listen(process.env.PORT ?? 5000);
 }
