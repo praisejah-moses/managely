@@ -63,13 +63,13 @@ export function isProject(obj: unknown): obj is Project {
     "name" in obj &&
     "description" in obj &&
     "tasks" in obj &&
-    "people" in obj &&
+    "projectPeoples" in obj &&
     "completed" in obj &&
     typeof (obj as any).id === "string" &&
     typeof (obj as any).name === "string" &&
     typeof (obj as any).description === "string" &&
     Array.isArray((obj as any).tasks) &&
-    Array.isArray((obj as any).people) &&
+    Array.isArray((obj as any).projectPeoples) &&
     typeof (obj as any).completed === "boolean"
   );
 }
@@ -140,6 +140,7 @@ export function createTask(text: string, dependencies: string[] = []): Task {
     text,
     subtasks: [],
     dependencies,
+    dependsOn: [],
     completed: false,
   };
 }
@@ -165,7 +166,7 @@ export function createProject(
     name,
     description,
     tasks,
-    people,
+    projectPeoples: people,
     completed: false,
   };
 }
@@ -184,6 +185,7 @@ export function parseTasksFromString(input: string): Task[] {
       text,
       subtasks: [],
       dependencies: [],
+      dependsOn: [],
       completed: false,
     }));
 }
