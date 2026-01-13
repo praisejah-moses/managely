@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,7 +9,7 @@ import { motion } from "framer-motion";
 import { useAuthState } from "./useAuthState";
 import { handleAuth } from "./authHandlers";
 
-export default function AuthPage() {
+function AuthPageContent() {
   const {
     mode,
     setMode,
@@ -139,5 +140,19 @@ export default function AuthPage() {
         </Card>
       </motion.div>
     </div>
+  );
+}
+
+export default function AuthPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-gray-900 via-black to-gray-800">
+          <div className="text-white">Loading...</div>
+        </div>
+      }
+    >
+      <AuthPageContent />
+    </Suspense>
   );
 }
