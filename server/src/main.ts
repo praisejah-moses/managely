@@ -16,7 +16,7 @@ async function bootstrap() {
 
   // Enable CORS
   app.enableCors(
-    { origin: 'https://managely-production.up.railway.app',
+    { origin: 'https://managely-blond.vercel.app',
     credentials: true
      }
   );
