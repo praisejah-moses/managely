@@ -49,6 +49,8 @@ function Dash() {
     setDependencyTaskId,
     searchQuery,
     setSearchQuery,
+    showMyProjectsOnly,
+    setShowMyProjectsOnly,
   } = useDashboardState();
 
   const router = useRouter();
@@ -82,9 +84,15 @@ function Dash() {
           // Fetch projects immediately after auth success
           try {
             const projectsResponse = await projectsApi.getAll(token);
-
+            console.log(
+              "Fetched projects on mount response:",
+              projectsResponse
+            );
             if (projectsResponse) {
-              setProjects(projectsResponse);
+              setProjects({
+                ...projectsResponse,
+                data: projectsResponse.data || [],
+              });
             } else {
               setProjectsError("Failed to load projects");
             }
@@ -158,6 +166,18 @@ function Dash() {
         projects={{
           ...projects,
           data: projects.data.filter((project) => {
+            // Get current user from localStorage
+            const userStr = localStorage.getItem("user");
+            const currentUser = userStr ? JSON.parse(userStr) : null;
+
+            // Apply "My Projects" filter if active
+            if (showMyProjectsOnly && currentUser) {
+              // Check if user is the creator
+              const isCreator = project.userId === currentUser.id;
+              if (!isCreator) return false;
+            }
+
+            // Apply search query filter
             if (!searchQuery.trim()) return true;
 
             const query = searchQuery.toLowerCase();
@@ -168,7 +188,7 @@ function Dash() {
             const taskMatch = project.tasks?.some((task: any) =>
               task.text?.toLowerCase().includes(query)
             );
-            const peopleMatch = project.people?.some((person: any) =>
+            const peopleMatch = project.projectPeoples?.some((person: any) =>
               person.name?.toLowerCase().includes(query)
             );
 
@@ -180,6 +200,8 @@ function Dash() {
           setOpen(true);
         }}
         onNewProject={() => setCreateOpen(true)}
+        showMyProjectsOnly={showMyProjectsOnly}
+        setShowMyProjectsOnly={setShowMyProjectsOnly}
         onProjectComplete={(projectId, completed) => {
           setProjects((cur) => ({
             data:
@@ -201,6 +223,7 @@ function Dash() {
         }}
         onUpdateProjects={(updater) => {
           setProjects((cur) => ({
+            ...cur,
             data: updater(cur.data || []) as any,
           }));
         }}

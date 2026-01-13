@@ -32,8 +32,8 @@ export class ProjectsController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.projectsService.findOne(id);
+  findOne(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.projectsService.findOne(id, user.sub);
   }
 
   @Patch(':id')
@@ -43,5 +43,28 @@ export class ProjectsController {
     @CurrentUser() user: any,
   ) {
     return this.projectsService.update(id, updateProjectDto, user.sub);
+  }
+
+  @Post(':id/people')
+  @HttpCode(HttpStatus.CREATED)
+  addPerson(
+    @Param('id') projectId: string,
+    @Body() body: { name: string; email?: string },
+    @CurrentUser() user: any,
+  ) {
+    return this.projectsService.addPerson(
+      projectId,
+      body.email || body.name,
+      user.sub,
+    );
+  }
+
+  @Delete(':projectId/people/:personId')
+  removePerson(
+    @Param('projectId') projectId: string,
+    @Param('personId') personId: string,
+    @CurrentUser() user: any,
+  ) {
+    return this.projectsService.removePerson(projectId, personId, user.sub);
   }
 }

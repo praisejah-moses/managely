@@ -4,51 +4,38 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { PeopleService } from '../people/people.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 
 @Injectable()
 export class ProjectsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private peopleService: PeopleService,
+  ) {}
 
   async create(createProjectDto: CreateProjectDto, userId: string) {
     const { tasks, people, ...projectData } = createProjectDto;
 
-    // Handle people - connect to existing or create new
-    let peopleConnections: { create?: any[]; connect?: any[] } | undefined =
-      undefined;
+    // Handle people - only allow registered users to be added as people
+    let peopleConnections: { create?: any[] } | undefined = undefined;
     if (people && people.length > 0) {
       const peoplePromises = people.map(async (person) => {
-        const email = `${person.name.toLowerCase().replace(/\s+/g, '.')}@placeholder.com`;
-
-        // Check if person already exists by email
-        const existingPerson = await this.prisma.person.findUnique({
-          where: { email },
-        });
-
-        if (existingPerson) {
-          // Connect to existing person
-          return { id: existingPerson.id };
-        } else {
-          // Create new person
-          return {
-            name: person.name,
-            email: email,
-          };
-        }
+        // Use PeopleService to find or create person by email
+        const personRecord = await this.peopleService.findOrCreatePersonByEmail(
+          person.email || person.name,
+        );
+        return personRecord.id;
       });
 
-      const resolvedPeople = await Promise.all(peoplePromises);
+      const personIds = await Promise.all(peoplePromises);
 
-      // Separate existing (with id) from new (without id)
-      const existingPeopleIds = resolvedPeople
-        .filter((p) => p.id)
-        .map((p) => ({ id: p.id }));
-      const newPeople = resolvedPeople.filter((p) => !p.id);
-
+      // Create ProjectPeople entries
       peopleConnections = {
-        create: newPeople,
-        connect: existingPeopleIds,
+        create: personIds.map((personId) => ({
+          person: { connect: { id: personId } },
+        })),
       };
     }
 
@@ -65,11 +52,21 @@ export class ProjectsService {
                 text: task.text,
                 order: index,
                 completed: false,
+                // Create subtasks if provided
+                subtasks: task.subtasks
+                  ? {
+                      create: task.subtasks.map((subtask, subIndex) => ({
+                        text: subtask.text,
+                        order: subIndex,
+                        completed: false,
+                      })),
+                    }
+                  : undefined,
               })),
             }
           : undefined,
-        // Connect to existing people or create new ones
-        people: peopleConnections,
+        // Create ProjectPeople entries
+        projectPeoples: peopleConnections,
       },
       include: {
         creator: {
@@ -98,12 +95,17 @@ export class ProjectsService {
             order: 'asc',
           },
         },
-        people: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            avatar: true,
+        projectPeoples: {
+          include: {
+            person: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                avatar: true,
+                userId: true,
+              },
+            },
           },
         },
       },
@@ -113,7 +115,23 @@ export class ProjectsService {
   }
 
   async findAll(userId?: string) {
-    const where = userId ? { creatorId: userId } : {};
+    // Build where clause to find projects where user is creator OR a member
+    const where = userId
+      ? {
+          OR: [
+            { creatorId: userId },
+            {
+              projectPeoples: {
+                some: {
+                  person: {
+                    userId: userId,
+                  },
+                },
+              },
+            },
+          ],
+        }
+      : {};
 
     return this.prisma.project.findMany({
       where,
@@ -161,18 +179,23 @@ export class ProjectsService {
             order: 'asc',
           },
         },
-        people: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            avatar: true,
+        projectPeoples: {
+          include: {
+            person: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                avatar: true,
+                userId: true,
+              },
+            },
           },
         },
         _count: {
           select: {
             tasks: true,
-            people: true,
+            projectPeoples: true,
           },
         },
       },
@@ -182,7 +205,7 @@ export class ProjectsService {
     });
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, userId?: string) {
     const project = await this.prisma.project.findUnique({
       where: { id },
       include: {
@@ -214,12 +237,17 @@ export class ProjectsService {
             order: 'asc',
           },
         },
-        people: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            avatar: true,
+        projectPeoples: {
+          include: {
+            person: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                avatar: true,
+                userId: true,
+              },
+            },
           },
         },
       },
@@ -229,11 +257,25 @@ export class ProjectsService {
       throw new NotFoundException(`Project with ID ${id} not found`);
     }
 
+    // Check if user has access to this project (creator or member)
+    if (userId) {
+      const isCreator = project.creatorId === userId;
+      const isMember = project.projectPeoples.some(
+        (pp) => pp.person.userId === userId,
+      );
+
+      if (!isCreator && !isMember) {
+        throw new ForbiddenException(
+          'You are not authorized to view this project',
+        );
+      }
+    }
+
     return project;
   }
 
   async update(id: string, updateProjectDto: UpdateProjectDto, userId: string) {
-    const project = await this.findOne(id);
+    const project = await this.findOne(id, userId);
 
     // Check if user is the creator
     if (project.creatorId !== userId) {
@@ -259,7 +301,7 @@ export class ProjectsService {
   }
 
   async remove(id: string, userId: string) {
-    const project = await this.findOne(id);
+    const project = await this.findOne(id, userId);
 
     // Check if user is the creator
     if (project.creatorId !== userId) {
@@ -275,8 +317,8 @@ export class ProjectsService {
     return { message: 'Project deleted successfully' };
   }
 
-  async addPerson(projectId: string, personId: string, userId: string) {
-    const project = await this.findOne(projectId);
+  async addPerson(projectId: string, emailOrId: string, userId: string) {
+    const project = await this.findOne(projectId, userId);
 
     if (project.creatorId !== userId) {
       throw new ForbiddenException(
@@ -284,27 +326,41 @@ export class ProjectsService {
       );
     }
 
-    const person = await this.prisma.person.findUnique({
-      where: { id: personId },
-    });
+    // Use PeopleService to find or create person
+    const person = await this.peopleService.findOrCreatePerson(emailOrId);
 
-    if (!person) {
-      throw new NotFoundException(`Person with ID ${personId} not found`);
+    if (!person.userId) {
+      throw new ForbiddenException(
+        'Only registered users can be added to projects',
+      );
     }
 
-    return this.prisma.projectPeople.create({
-      data: {
+    // Check if person is already in the project
+    const existingProjectPerson = await this.prisma.projectPeople.findFirst({
+      where: {
         projectId,
-        personId,
-      },
-      include: {
-        person: true,
+        personId: person.id,
       },
     });
+
+    if (existingProjectPerson) {
+      throw new ForbiddenException('Person is already in this project');
+    }
+
+    // Create the project-person relationship
+    await this.prisma.projectPeople.create({
+      data: {
+        projectId,
+        personId: person.id,
+      },
+    });
+
+    // Return the complete updated project
+    return this.findOne(projectId, userId);
   }
 
   async removePerson(projectId: string, personId: string, userId: string) {
-    const project = await this.findOne(projectId);
+    const project = await this.findOne(projectId, userId);
 
     if (project.creatorId !== userId) {
       throw new ForbiddenException(

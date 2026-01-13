@@ -1,10 +1,11 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { CreateProjectModalProps, Project } from "@/types/index";
-import { parseTasksFromString, parsePeopleFromString } from "@/types/helpers";
-import { projectsApi } from "@/lib/api";
+import { CreateProjectModalProps, Project, User } from "@/types/index";
+import { parseTasksFromString } from "@/types/helpers";
+import { projectsApi, usersApi } from "@/lib/api";
 import { getAuthToken } from "@/lib/auth";
+import { normalizeProjectData } from "@/lib/normalizers";
 import { CreateProjectPayload } from "@/types/index";
 
 export function CreateProjectModal({
@@ -22,6 +23,63 @@ export function CreateProjectModal({
 }: CreateProjectModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [availableUsers, setAvailableUsers] = useState<User[]>([]);
+  const [selectedUsers, setSelectedUsers] = useState<User[]>([]);
+  const [userSearchQuery, setUserSearchQuery] = useState("");
+  const [loadingUsers, setLoadingUsers] = useState(false);
+
+  // Fetch available users when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      fetchUsers();
+    }
+  }, [isOpen]);
+
+  const fetchUsers = async () => {
+    setLoadingUsers(true);
+    try {
+      const token = getAuthToken();
+      if (!token) return;
+
+      const response = await usersApi.getAll(token);
+      if (response.success && response.data) {
+        setAvailableUsers(response.data);
+      }
+    } catch (err) {
+      console.error("Error fetching users:", err);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  // Filter users based on search query
+  const filteredUsers = useMemo(() => {
+    if (!userSearchQuery.trim()) return availableUsers;
+
+    const query = userSearchQuery.toLowerCase();
+    return availableUsers.filter(
+      (user) =>
+        user.name.toLowerCase().includes(query) ||
+        user.email.toLowerCase().includes(query)
+    );
+  }, [availableUsers, userSearchQuery]);
+
+  // Toggle user selection
+  const toggleUserSelection = (user: User) => {
+    setSelectedUsers((prev) => {
+      const isSelected = prev.some((u) => u.id === user.id);
+      if (isSelected) {
+        return prev.filter((u) => u.id !== user.id);
+      } else {
+        return [...prev, user];
+      }
+    });
+  };
+
+  // Check if user is selected
+  const isUserSelected = (userId: string) => {
+    return selectedUsers.some((u) => u.id === userId);
+  };
 
   if (!isOpen) return null;
 
@@ -40,9 +98,12 @@ export function CreateProjectModal({
 
       // Parse the input strings
       const tasks = parseTasksFromString(newTasks);
-      const people = parsePeopleFromString(newPeople);
 
-      // Normalize data for server API
+      // Use selected users for people
+      const people = selectedUsers.map((user) => ({
+        name: user.name,
+        email: user.email,
+      }));
 
       const payload: CreateProjectPayload = {
         name: newName.trim() || "Untitled Project",
@@ -51,9 +112,7 @@ export function CreateProjectModal({
           text: task.text,
           dependencies: task.dependencies || [],
         })),
-        people: people.map((person) => ({
-          name: person.name,
-        })),
+        people: people,
       };
 
       // Call server API
@@ -65,22 +124,8 @@ export function CreateProjectModal({
         return;
       }
 
-      // Convert server response to local Project format
-      const serverProject = response.data;
-      const localProject: Project = {
-        id: serverProject.id,
-        name: serverProject.name,
-        description: serverProject.description,
-        tasks: serverProject.tasks.map((task) => ({
-          id: task.id,
-          text: task.text,
-          subtasks: task.subtasks || [],
-          dependencies: task.dependencies || [],
-          completed: task.completed || false,
-        })),
-        people: serverProject.people,
-        completed: serverProject.completed || false,
-      };
+      // Convert server response to local Project format using normalizer
+      const localProject = normalizeProjectData(response.data);
 
       // Call the parent callback with the created project
       onCreateProject(localProject);
@@ -90,6 +135,8 @@ export function CreateProjectModal({
       onDescriptionChange("");
       onTasksChange("");
       onPeopleChange("");
+      setSelectedUsers([]);
+      setUserSearchQuery("");
       setLoading(false);
     } catch (err) {
       console.error("Error creating project:", err);
@@ -185,21 +232,114 @@ export function CreateProjectModal({
               />
             </div>
 
-            {/* People input */}
+            {/* People section with search */}
             <div className="group">
               <label className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
                 <span className="text-pink-600">👥</span>
-                People (comma separated)
+                Add People to Project
               </label>
-              <input
-                value={newPeople}
-                onChange={(e) => onPeopleChange(e.target.value)}
-                placeholder="e.g., Alice, Bob, Carol"
-                className="w-full rounded-lg border-2 border-slate-200 px-4 py-3 
-                  focus:outline-none focus:border-pink-500 focus:ring-2 focus:ring-pink-200
-                  transition-all duration-200 group-hover:border-slate-300
-                  bg-white/60 backdrop-blur-sm"
-              />
+
+              {/* Selected users display */}
+              {selectedUsers.length > 0 && (
+                <div className="mb-3 flex flex-wrap gap-2">
+                  {selectedUsers.map((user) => (
+                    <div
+                      key={user.id}
+                      className="flex items-center gap-2 bg-pink-100 border border-pink-300 rounded-lg px-3 py-1.5 text-sm"
+                    >
+                      <span className="font-medium text-pink-900">
+                        {user.name}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => toggleUserSelection(user)}
+                        className="text-pink-600 hover:text-pink-800 font-bold"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Search input with dropdown */}
+              <div className="relative">
+                <input
+                  type="text"
+                  value={userSearchQuery}
+                  onChange={(e) => setUserSearchQuery(e.target.value)}
+                  onFocus={() => setUserSearchQuery("")}
+                  placeholder="Search users by name or email..."
+                  className="w-full rounded-lg border-2 border-slate-200 px-4 py-3 pl-10
+                    focus:outline-none focus:border-pink-500 focus:ring-2 focus:ring-pink-200
+                    transition-all duration-200 group-hover:border-slate-300
+                    bg-white/60 backdrop-blur-sm"
+                />
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                  🔍
+                </span>
+
+                {/* Dropdown - only shows when there's a search query and results - pops upward */}
+                {userSearchQuery && (
+                  <div className="absolute z-20 bottom-full mb-1 w-full bg-white border-2 border-pink-200 rounded-lg shadow-xl max-h-48 overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-slate-100 [&::-webkit-scrollbar-thumb]:bg-pink-300 [&::-webkit-scrollbar-thumb]:rounded-full">
+                    {loadingUsers ? (
+                      <div className="p-4 text-center text-slate-500">
+                        Loading users...
+                      </div>
+                    ) : filteredUsers.length === 0 ? (
+                      <div className="p-4 text-center text-slate-500">
+                        No users found
+                      </div>
+                    ) : (
+                      <div className="divide-y divide-slate-200">
+                        {filteredUsers.map((user) => (
+                          <button
+                            key={user.id}
+                            type="button"
+                            onClick={() => {
+                              toggleUserSelection(user);
+                              setUserSearchQuery("");
+                            }}
+                            className={`w-full px-4 py-3 text-left hover:bg-pink-50 transition-colors duration-200 flex items-center gap-3 ${
+                              isUserSelected(user.id) ? "bg-pink-100" : ""
+                            }`}
+                          >
+                            <div className="shrink-0">
+                              {user.avatar ? (
+                                <img
+                                  src={user.avatar}
+                                  alt={user.name}
+                                  className="w-8 h-8 rounded-full"
+                                />
+                              ) : (
+                                <div className="w-8 h-8 rounded-full bg-linear-to-br from-pink-400 to-purple-500 flex items-center justify-center text-white font-semibold">
+                                  {user.name.charAt(0).toUpperCase()}
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium text-slate-900 truncate">
+                                {user.name}
+                              </div>
+                              <div className="text-sm text-slate-500 truncate">
+                                {user.email}
+                              </div>
+                            </div>
+                            {isUserSelected(user.id) && (
+                              <div className="shrink-0 text-pink-600 font-bold">
+                                ✓
+                              </div>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+              <p className="text-xs text-slate-500 mt-2">
+                Type to search for users to add to the project
+              </p>
             </div>
 
             {/* Error message */}

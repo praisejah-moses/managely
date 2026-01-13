@@ -10,27 +10,40 @@ A full-stack project management application built with Next.js and NestJS, featu
   - Real-time project search across names, descriptions, tasks, and people
   - Visual progress tracking with dynamic progress bars
   - Auto-calculation of project completion based on task status
+  - "My Projects" filter to view only projects you created
 - **Task Management**:
-  - Add tasks to projects
+  - Add tasks to projects with optional dependencies
   - Set task dependencies (tasks that must be completed before others)
   - Track task completion status with validation
+  - Assign team members to specific tasks
   - Organize tasks by order
   - Loading animations during task status updates
   - Tasks cannot be marked complete until dependencies are satisfied
   - Tasks cannot be marked complete until all subtasks are finished
+  - Visual dependency indicators showing completion status
 - **Subtask Management**:
   - Break down tasks into smaller subtasks
   - Full CRUD operations (Create, Read, Update, Delete)
   - Individual subtask completion tracking
+  - Unchecking a subtask automatically unchecks the parent task
   - Loading spinners during subtask operations
+- **Task Assignment**:
+  - Assign project members to specific tasks
+  - Search and filter assignees from project team
+  - Visual assignee badges on tasks
+  - Remove assignees with one click
+  - Only project members can be assigned to tasks
 - **Team Collaboration**:
-  - Add team members to projects
-  - Display team member initials in avatars
+  - Add team members to projects via searchable dropdown
+  - Display team member avatars with initials
+  - User search with autocomplete
   - Automatic duplicate prevention for people
-- **Search & Filter**: Real-time project filtering by name, description, tasks, and team members
+- **Search & Filter**:
+  - Real-time project filtering by name, description, tasks, and team members
+  - "My Projects" toggle to filter by project ownership
 - **Loading States**: Individual loading indicators for each task and subtask operation
 - **Responsive Design**: Beautiful UI built with Tailwind CSS and Shadcn
-- **Data Seeding**: Comprehensive seeding script with 30 sample projects for testing
+- **Data Seeding**: Comprehensive seeding script with 30 sample projects including subtasks
 
 ## 🛠️ Tech Stack
 
@@ -95,11 +108,14 @@ Before you begin, ensure you have the following installed:
    ```
 
 5. **Seed the database (optional)**
+
    ```bash
    node seed-projects.js your-email@example.com your-password
    ```
+
    This will create 30 sample projects with tasks, subtasks, and team members. prisma migrate dev
    cd ..
+
    ```
 
    ```
@@ -249,11 +265,25 @@ Tasks can depend on other tasks, meaning they cannot be completed until their de
 
 ### Subtasks
 
-Each task can have multiple subtasks, allowing for better task breakdown and tracking of progress.
+Each task can have multiple subtasks, allowing for better task breakdown and tracking of progress. Unchecking a subtask automatically unchecks the parent task to maintain data consistency.
 
 ### Project Team
 
-Add team members to projects to track who is involved. Team members can be assigned to specific tasks.
+Add team members to projects to track who is involved. Team members can be assigned to specific tasks. Only project members can be assigned to tasks, ensuring proper access control and team management.
+
+### Task Assignees
+
+Team members can be assigned to specific tasks within a project. The assignment interface features:
+
+- Searchable dropdown showing only project members
+- Visual assignee badges with user initials
+- One-click removal by hovering over badges
+- Real-time updates when assignees are added or removed
+- Access control ensuring only project members can be assigned
+
+### My Projects Filter
+
+Quickly filter your dashboard to show only projects you created using the "My Projects" button. The button is highlighted in purple when active and sits next to the "New Project" button for easy access.
 
 ## 🌐 API Endpoints
 
@@ -266,25 +296,28 @@ Add team members to projects to track who is involved. Team members can be assig
 ### Projects
 
 - `GET /projects` - Get all projects
-- `POST /projects` - Create a new project
+- `POST /projects` - Create a new project (supports tasks with subtasks and assignees)
 - `GET /projects/:id` - Get project by ID
 - `PATCH /projects/:id` - Update project
 - `DELETE /projects/:id` - Delete project
 
-### Tasks (modal entry/exit, task toggles)
+### Tasks
 
-- **Gradient designs** for visual appeal (sticky headers, project cards)
-- **Modal dialogs** with sticky headers for creating/editing projects
-- **Progress tracking** with dynamic visual progress bars
-- **Responsive design** for all screen sizes
-- **Color-coded status indicators** for task completion
-- **Loading spinners** for individual tasks and subtasks
-- **Real-time search** with instant filtering
-- **User avatars** with dynamic initials
-- **Hidden scrollbars** for cleaner interface
-- **Validation messages** when tasks can't be completed
-- **Cancel buttons** for forms (subtask creation)Add subtask
-- `PATCH /projects/:projectId/tasks/:taskId/subtasks/:subtaskId` - Update subtask
+- `GET /projects/:projectId/tasks` - Get all tasks for a project
+- `POST /projects/:projectId/tasks` - Add task to project (supports assigneeIds array)
+- `PATCH /tasks/:id` - Update task (validates dependencies and subtasks, supports assigneeIds)
+- `DELETE /tasks/:id` - Delete task
+
+### Subtasks
+
+- `POST /tasks/:taskId/subtasks` - Add subtask to task
+- `PATCH /tasks/subtasks/:subtaskId` - Update subtask
+- `DELETE /tasks/subtasks/:subtaskId` - Delete subtask
+
+### Users
+
+- `GET /users` - Get all users (for team member search and task assignment)
+- `GET /users/me` - Get current user information
 - `DELETE /projects/:projectId/tasks/:taskId/subtasks/:subtaskId` - Delete subtask
 
 ### People
@@ -316,7 +349,41 @@ The application uses JWT (JSON Web Tokens) for authentication:
 
 ## 🎨 UI/UX Features
 
-- \*🌱 Database Seeding
+- **Dynamic Modals**:
+  - Project creation modal with team member search dropdown (opens upward)
+  - Project details modal with full task/subtask management
+  - Task assignment interface with upward search dropdown
+- **Assignee Management**:
+  - Visual assignee badges with user initials
+  - Hover-to-remove functionality on assignee badges
+  - Real-time assignee list updates
+  - Restricted to project members only
+- **Task Dependencies**:
+  - Visual "Depends On" section showing dependency status
+  - Completed dependencies shown with checkmarks
+  - Incomplete dependencies highlighted for visibility
+  - Dependency validation prevents premature task completion
+- **Progress Visualization**:
+  - Color-coded progress bars (gray → purple gradient)
+  - Percentage display for quick status overview
+  - Real-time updates as tasks complete
+- **Filter Controls**:
+  - "My Projects" button next to "New Project" button
+  - Purple highlight when My Projects filter is active
+  - One-click toggle for quick filtering
+- **Interactive Elements**:
+  - Hover effects on all interactive components
+  - Loading spinners during async operations
+  - Smooth transitions and animations
+  - Disabled states with visual feedback
+  - Hidden scrollbars for cleaner interface
+  - Gradient designs for visual appeal (sticky headers, project cards)
+  - Real-time search with instant filtering
+  - User avatars with dynamic initials
+  - Validation messages when tasks can't be completed
+  - Cancel buttons for forms
+
+## 🌱 Database Seeding
 
 The project includes a comprehensive seeding script to populate your database with sample data for testing:
 
@@ -328,10 +395,11 @@ node seed-projects.js your-email@example.com your-password
 
 - Creates 30 diverse projects (Website Redesign, Mobile App, E-commerce Platform, etc.)
 - Adds realistic tasks with dependencies
-- Includes team members and assignments
+- Includes subtasks for most tasks (70% of tasks have 2-3 subtasks)
+- Includes team members and task assignments
+- Reuses existing users (no new user creation required)
 - Prevents duplicate people creation (reuses existing by email)
 - Shows progress and statistics during seeding
-
 
 ## 🐛 Troubleshooting
 

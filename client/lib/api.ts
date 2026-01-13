@@ -107,54 +107,13 @@ export const authApi = {
 
 // Project-related types
 
-// Helper function to normalize server project data to client Project type
-const normalizeProjectData = (serverProject: any) => {
-  return {
-    id: serverProject.id || serverProject._id || "",
-    name: serverProject.name || "Untitled Project",
-    description: serverProject.description || "",
-    tasks: Array.isArray(serverProject.tasks)
-      ? serverProject.tasks.map((task: any) => ({
-          id: task.id || task._id || "",
-          text: task.text || "",
-          completed: task.completed || false,
-          order: task.order ?? 0,
-          projectId: task.projectId || serverProject.id,
-          subtasks: Array.isArray(task.subtasks)
-            ? task.subtasks.map((subtask: any) => ({
-                id: subtask.id || subtask._id || "",
-                text: subtask.text || "",
-                completed: subtask.completed || false,
-                order: subtask.order ?? 0,
-                taskId: subtask.taskId || task.id,
-                createdAt: subtask.createdAt,
-                updatedAt: subtask.updatedAt,
-              }))
-            : [],
-          dependencies: Array.isArray(task.dependencies)
-            ? task.dependencies
-            : [],
-          assignees: Array.isArray(task.assignees) ? task.assignees : [],
-          people: Array.isArray(task.people) ? task.people : [],
-          createdAt: task.createdAt,
-          updatedAt: task.updatedAt,
-        }))
-      : [],
-    people: Array.isArray(serverProject.people)
-      ? serverProject.people.map((person: any) => ({
-          name: person.name || "Unknown",
-        }))
-      : [],
-    completed: serverProject.completed || false,
-    userId: serverProject.userId || "",
-    createdAt: serverProject.createdAt || new Date().toISOString(),
-  };
-};
+// Import shared normalization functions
+import { normalizeProjectData } from "./normalizers";
 
 // Projects API calls
 export const projectsApi = {
   // Get all projects
-  getAll: async (token: string): Promise<GetProjectsApiResponse> => {
+  getAll: async (token: string): Promise<ApiResponse<any>> => {
     const response = await apiCall("/projects", {
       method: "GET",
       headers: {
@@ -163,14 +122,16 @@ export const projectsApi = {
     });
 
     // Normalize the projects data for client use
-    if (response.success && response.data?.projects) {
+    if (response.success && Array.isArray(response.data)) {
       return {
         ...response,
-        data: response.data.map(normalizeProjectData),
+        data: response.data.map((project: any) =>
+          normalizeProjectData(project)
+        ),
       };
     }
 
-    return response as GetProjectsApiResponse;
+    return response;
   },
 
   // Create new project
@@ -218,7 +179,12 @@ export const projectsApi = {
   // Add task to project
   addTask: async (
     token: string,
-    task: { text: string; projectId: string; dependencyTaskIds?: string[] }
+    task: {
+      text: string;
+      projectId: string;
+      dependencyTaskIds?: string[];
+      assigneeIds?: string[];
+    }
   ): Promise<ApiResponse<ProjectResponse>> => {
     return await apiCall(`/tasks`, {
       method: "POST",
@@ -237,6 +203,7 @@ export const projectsApi = {
       text?: string;
       completed?: boolean;
       dependencyTaskIds?: string[];
+      assigneeIds?: string[];
     }
   ): Promise<ApiResponse<any>> => {
     return apiCall(`/tasks/${taskId}`, {
@@ -290,6 +257,19 @@ export const projectsApi = {
         Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify(person),
+    });
+  },
+};
+
+// Users API calls
+export const usersApi = {
+  // Get all users
+  getAll: async (token: string): Promise<ApiResponse<any[]>> => {
+    return apiCall("/users", {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
     });
   },
 };

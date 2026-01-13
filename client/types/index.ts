@@ -27,7 +27,16 @@ export interface Task {
   order?: number; // For sorting/ordering tasks
   projectId?: string; // Foreign key to parent project
   subtasks: Subtask[];
-  dependencies: string[]; // Array of task IDs this task depends on
+  dependencies: string[]; // Array of task IDs this task depends on (for backward compatibility)
+  dependsOn?: Array<{
+    // Task dependencies with full information from server
+    id?: string;
+    dependencyTask: {
+      id: string;
+      text: string;
+      completed: boolean;
+    };
+  }>;
   assignees?: Array<{
     // Users assigned to this task
     id: string;
@@ -39,8 +48,18 @@ export interface Task {
   updatedAt?: string; // ISO date string
 }
 
-export interface Person {
+export interface User {
+  id: string;
   name: string;
+  email: string;
+  avatar?: string;
+}
+
+export interface Person {
+  id?: string;
+  name: string;
+  email?: string;
+  avatar?: string;
 }
 
 export interface Project {
@@ -48,7 +67,7 @@ export interface Project {
   name: string;
   description: string;
   tasks: Task[];
-  people: Person[];
+  projectPeoples: Person[];
   completed: boolean;
 }
 
@@ -85,6 +104,8 @@ export interface ProjectsCardProps {
   onProjectSelect: (project: GetProjectsApiResponse) => void;
   onNewProject: () => void;
   onProjectComplete?: (projectId: string, completed: boolean) => void;
+  showMyProjectsOnly?: boolean;
+  setShowMyProjectsOnly?: (show: boolean) => void;
 }
 
 export interface ProjectDetailsModalProps {
@@ -154,7 +175,7 @@ export interface ProjectServerResponse {
     dependsOn: string[];
     completed: boolean;
   }>;
-  people: Array<{
+  projectPeoples: Array<{
     name: string;
   }>;
   completed: boolean;
@@ -187,6 +208,7 @@ export interface CreateProjectPayload {
   }>;
   people?: Array<{
     name: string;
+    email?: string;
   }>;
 }
 

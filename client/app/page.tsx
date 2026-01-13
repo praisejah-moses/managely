@@ -21,7 +21,7 @@ export default function Home() {
         {/* Logo or App Name */}
         <div className="space-y-2">
           <h1 className="text-5xl font-black bg-linear-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
-            ProjectHub
+            Managely
           </h1>
           <p className="text-sm text-slate-600 font-medium">Manage your projects efficiently</p>
         </div>

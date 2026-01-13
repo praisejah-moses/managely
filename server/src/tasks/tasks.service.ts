@@ -227,7 +227,7 @@ export class TasksService {
               create: assigneeIds.map((userId) => ({
                 userId,
               })),
-            }
+            }  
           : undefined,
         dependsOn: dependencyTaskIds
           ? {

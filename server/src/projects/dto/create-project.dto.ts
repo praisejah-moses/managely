@@ -1,5 +1,19 @@
-import { IsString, IsNotEmpty, IsOptional, IsBoolean, IsArray, ValidateNested } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsBoolean,
+  IsArray,
+  ValidateNested,
+} from 'class-validator';
 import { Type } from 'class-transformer';
+import { CreatePersonDto } from '../../people/dto/create-person.dto';
+
+class CreateSubtaskDto {
+  @IsString()
+  @IsNotEmpty()
+  text: string;
+}
 
 class CreateTaskDto {
   @IsString()
@@ -9,12 +23,12 @@ class CreateTaskDto {
   @IsArray()
   @IsOptional()
   dependencies?: string[];
-}
 
-class CreatePersonDto {
-  @IsString()
-  @IsNotEmpty()
-  name: string;
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateSubtaskDto)
+  @IsOptional()
+  subtasks?: CreateSubtaskDto[];
 }
 
 export class CreateProjectDto {

@@ -62,6 +62,8 @@ export function ProjectsCard({
   onProjectSelect,
   onNewProject,
   onProjectComplete,
+  showMyProjectsOnly,
+  setShowMyProjectsOnly,
 }: ProjectsCardProps) {
   return (
     <section
@@ -78,9 +80,23 @@ export function ProjectsCard({
               </CardDescription>
             </div>
             <CardAction>
-              <Button onClick={onNewProject} size="sm">
-                New Project
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={() => setShowMyProjectsOnly?.(!showMyProjectsOnly)}
+                  variant={showMyProjectsOnly ? "default" : "outline"}
+                  size="sm"
+                  className={`transition-all duration-200 ${
+                    showMyProjectsOnly
+                      ? "bg-purple-600 text-white hover:bg-purple-700"
+                      : "text-slate-700 hover:border-purple-400 hover:text-purple-600"
+                  }`}
+                >
+                  {showMyProjectsOnly ? "✓ My Projects" : "My Projects"}
+                </Button>
+                <Button onClick={onNewProject} size="sm">
+                  New Project
+                </Button>
+              </div>
             </CardAction>
           </CardHeader>
 
@@ -116,6 +132,10 @@ export function ProjectsCard({
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {projects.data.map((p, index) => {
                   const colors = getProjectColor(index);
+                  const projectWithPeople: any = {
+                    ...p,
+                    people: p.projectPeoples || [],
+                  };
                   return (
                     <button
                       key={p.id}
@@ -139,14 +159,17 @@ export function ProjectsCard({
                               checked={p.completed || false}
                               onChange={(e) => {
                                 e.stopPropagation();
-                                const allCompleted = areAllTasksCompleted(p);
+                                const allCompleted =
+                                  areAllTasksCompleted(projectWithPeople);
                                 if (allCompleted && onProjectComplete) {
                                   onProjectComplete(p.id, e.target.checked);
                                 }
                               }}
-                              disabled={!areAllTasksCompleted(p)}
+                              disabled={
+                                !areAllTasksCompleted(projectWithPeople)
+                              }
                               title={
-                                areAllTasksCompleted(p)
+                                areAllTasksCompleted(projectWithPeople)
                                   ? "Mark project as complete"
                                   : "Complete all tasks to finish this project"
                               }
@@ -191,9 +214,9 @@ export function ProjectsCard({
                             </p>
                           </div>
                           <div className="flex -space-x-2">
-                            {p.people.length > 0 ? (
+                            {projectWithPeople.people.length > 0 ? (
                               <>
-                                {p.people
+                                {projectWithPeople.people
                                   .slice(0, 3)
                                   .map((person: any, idx: number) => (
                                     <Avatar
@@ -201,14 +224,16 @@ export function ProjectsCard({
                                       className="h-6 w-6 border-2 border-white transition-transform duration-300 hover:scale-125 hover:z-10"
                                     >
                                       <AvatarFallback className="text-xs font-semibold">
-                                        {person.name.slice(0, 2).toUpperCase()}
+                                        {person?.name
+                                          ?.slice(0, 2)
+                                          .toUpperCase() || "??"}
                                       </AvatarFallback>
                                     </Avatar>
                                   ))}
-                                {p.people.length > 3 && (
+                                {projectWithPeople.people.length > 3 && (
                                   <div className="h-6 w-6 rounded-full bg-linear-to-br from-slate-300 to-slate-400 border-2 border-white flex items-center justify-center transition-transform duration-300 hover:scale-125">
                                     <span className="text-xs font-bold text-slate-700">
-                                      +{p.people.length - 3}
+                                      +{projectWithPeople.people.length - 3}
                                     </span>
                                   </div>
                                 )}

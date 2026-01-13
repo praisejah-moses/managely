@@ -36,6 +36,9 @@ export function useDashboardState() {
   // Search state
   const [searchQuery, setSearchQuery] = useState("");
 
+  // Filter state
+  const [showMyProjectsOnly, setShowMyProjectsOnly] = useState(false);
+
   return {
     // Modal states
     open,
@@ -84,5 +87,9 @@ export function useDashboardState() {
     // Search state
     searchQuery,
     setSearchQuery,
+
+    // Filter state
+    showMyProjectsOnly,
+    setShowMyProjectsOnly,
   };
 }
